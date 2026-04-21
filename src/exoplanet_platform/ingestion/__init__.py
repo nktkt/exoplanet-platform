@@ -11,10 +11,13 @@ from .gaia import GaiaClient
 from .jpl_horizons import JPLHorizonsClient
 from .mast import MASTClient
 from .nasa_exoplanet_archive import NASAExoplanetArchiveClient
+from .simbad import ResolvedObject, SimbadClient
 
 __all__ = [
     "GaiaClient",
     "JPLHorizonsClient",
     "MASTClient",
     "NASAExoplanetArchiveClient",
+    "ResolvedObject",
+    "SimbadClient",
 ]

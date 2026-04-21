@@ -224,20 +224,66 @@ def ingest_cmd(
     catalog_l = catalog.strip().lower()
     try:
         if catalog_l == "nasa":
+            from exoplanet_platform.exceptions import (
+                DataSourceNotFoundError,
+                DataSourceUnavailableError,
+            )
+            from exoplanet_platform.ingestion.gaia import GaiaClient
             from exoplanet_platform.ingestion.nasa_exoplanet_archive import (
                 NASAExoplanetArchiveClient,
             )
 
-            client = NASAExoplanetArchiveClient()
+            nasa = NASAExoplanetArchiveClient()
             with console.status(f"[cyan]Fetching '{identifier}' from NASA EA..."):
-                planet = client.get_planet(identifier)
+                planet = nasa.get_planet(identifier)
             with get_session() as s:
-                repo = PlanetRepository(s)
-                repo.upsert(planet)
+                PlanetRepository(s).upsert(planet)
             console.print(
                 f"[green]Stored planet[/green] [bold]{planet.identifier}[/bold] "
                 f"(host star [bold]{planet.host_star}[/bold])."
             )
+
+            # Auto-ingest host star via SIMBAD → Gaia so downstream habitability
+            # / stellar-analysis commands work without a second manual step.
+            with get_session() as s:
+                star_exists = True
+                try:
+                    StarRepository(s).get(planet.host_star)
+                except DataSourceNotFoundError:
+                    star_exists = False
+
+            if star_exists:
+                console.print(
+                    f"[dim]Host star[/dim] [bold]{planet.host_star}[/bold] "
+                    "[dim]already stored, skipping Gaia lookup.[/dim]"
+                )
+            else:
+                try:
+                    gaia = GaiaClient()
+                    with console.status(
+                        f"[cyan]Resolving host star '{planet.host_star}' "
+                        "via SIMBAD → Gaia..."
+                    ):
+                        star = gaia.resolve_by_name(planet.host_star)
+                    with get_session() as s:
+                        StarRepository(s).upsert(star)
+                    console.print(
+                        f"[green]Stored host star[/green] "
+                        f"[bold]{star.identifier}[/bold] "
+                        f"(Teff={star.effective_temperature_k} K, "
+                        f"R={star.radius_solar} R☉)."
+                    )
+                except (DataSourceNotFoundError, DataSourceUnavailableError) as se:
+                    console.print(
+                        f"[yellow]Could not auto-ingest host star "
+                        f"'{planet.host_star}':[/yellow] {se}"
+                    )
+                    console.print(
+                        "[yellow]Run[/yellow] "
+                        f"[cyan]exoplanet ingest '{planet.host_star}' "
+                        "--catalog gaia[/cyan] "
+                        "[yellow]to add it manually later.[/yellow]"
+                    )
         elif catalog_l == "gaia":
             from exoplanet_platform.ingestion.gaia import GaiaClient
 

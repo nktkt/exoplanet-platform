@@ -20,16 +20,28 @@ from .base import DataSourceClient
 log = get_logger(__name__)
 
 
-# ADQL fragments for the columns we care about. Kept as a tuple so the
-# select-list order matches the ordering used by the row parser.
-_COLUMNS: tuple[str, ...] = (
-    "source_id",
-    "ra",
-    "dec",
-    "parallax",
-    "teff_gspphot",
-    "radius_gspphot",
-    "mh_gspphot",
+# Gaia DR3 splits astrophysics across two tables:
+#   * ``gaiadr3.gaia_source`` — astrometry + (in DR3) a subset of GSP-Phot
+#     parameters including ``teff_gspphot`` and ``mh_gspphot``.
+#   * ``gaiadr3.astrophysical_parameters`` — full GSP-Phot output, including
+#     ``radius_gspphot`` which is absent from ``gaia_source``.
+# We LEFT JOIN so we still get a row when the AP table has no entry.
+_SOURCE_COLUMNS: tuple[str, ...] = (
+    "s.source_id",
+    "s.ra",
+    "s.dec",
+    "s.parallax",
+    "s.teff_gspphot",
+    "s.mh_gspphot",
+)
+_AP_COLUMNS: tuple[str, ...] = ("ap.radius_gspphot",)
+_COLUMNS: tuple[str, ...] = _SOURCE_COLUMNS + _AP_COLUMNS
+# Stable short names used by the row parser (strip the ``s.`` / ``ap.`` alias).
+_COLUMN_NAMES: tuple[str, ...] = tuple(c.split(".", 1)[1] for c in _COLUMNS)
+_FROM_JOIN: str = (
+    "gaiadr3.gaia_source AS s "
+    "LEFT JOIN gaiadr3.astrophysical_parameters AS ap "
+    "ON s.source_id = ap.source_id"
 )
 
 
@@ -109,16 +121,16 @@ class GaiaClient(DataSourceClient):
         cols = ",".join(_COLUMNS)
         if source_id is not None:
             adql = (
-                f"SELECT TOP 1 {cols} FROM gaiadr3.gaia_source "
-                f"WHERE source_id = {int(source_id)}"
+                f"SELECT TOP 1 {cols} FROM {_FROM_JOIN} "
+                f"WHERE s.source_id = {int(source_id)}"
             )
             identifier = f"Gaia DR3 {source_id}"
         else:
             assert name is not None
             safe = _escape_adql(name.strip())
             adql = (
-                f"SELECT TOP 1 {cols} FROM gaiadr3.gaia_source "
-                f"WHERE designation = '{safe}'"
+                f"SELECT TOP 1 {cols} FROM {_FROM_JOIN} "
+                f"WHERE s.designation = '{safe}'"
             )
             identifier = name.strip()
 
@@ -140,12 +152,101 @@ class GaiaClient(DataSourceClient):
         """Fetch a star by a human-readable identifier.
 
         If ``identifier`` is numeric, it is treated as a Gaia DR3 source_id.
-        Otherwise it is passed to ``query_star(name=...)`` as a designation.
+        Otherwise SIMBAD is consulted to resolve the name to either a Gaia
+        DR3 source_id or sky coordinates, and that result drives the Gaia
+        query. Falls back to the old designation-match behaviour if SIMBAD
+        is unreachable.
         """
         ident = identifier.strip()
         if ident.isdigit():
             return self.query_star(source_id=int(ident))
-        return self.query_star(name=ident)
+        return self.resolve_by_name(ident)
+
+    def resolve_by_name(self, name: str, cone_radius_arcsec: float = 5.0) -> Star:
+        """Look up a star by a common name using SIMBAD → Gaia DR3.
+
+        Strategy:
+          1. Query SIMBAD. If it returns a ``Gaia DR3 <id>`` cross-identifier,
+             fetch that row directly from Gaia.
+          2. Otherwise, if SIMBAD returned coordinates, run a small Gaia
+             cone search and return the nearest star.
+          3. If SIMBAD itself is unreachable, fall back to the existing
+             designation-based query as a last resort.
+
+        Args:
+            name: Object name resolvable by SIMBAD (e.g. ``"Kepler-10"``).
+            cone_radius_arcsec: Cone radius when coordinate fallback kicks in.
+
+        Returns:
+            The matching :class:`Star`, with ``identifier`` set to ``name``
+            so the planet's ``host_star`` string lines up.
+
+        Raises:
+            ValidationError: If the name is empty.
+            DataSourceNotFoundError: If neither SIMBAD nor Gaia have a match.
+            DataSourceUnavailableError: If both SIMBAD and Gaia are unreachable.
+        """
+        # Local import to avoid a cycle (simbad module also imports from here
+        # transitively via `base`).
+        from .simbad import SimbadClient
+
+        log.debug("gaia.resolve_by_name.start", name=name)
+
+        star: Star | None = None
+        simbad_unavailable = False
+        try:
+            resolved = SimbadClient().resolve(name)
+        except DataSourceNotFoundError:
+            log.warning("gaia.resolve_by_name.simbad_miss", name=name)
+            resolved = None
+        except DataSourceUnavailableError as e:
+            log.warning("gaia.resolve_by_name.simbad_down", name=name, error=str(e))
+            resolved = None
+            simbad_unavailable = True
+
+        if resolved is not None:
+            gaia_id = resolved.gaia_dr3_source_id or resolved.gaia_dr2_source_id
+            if gaia_id is not None:
+                try:
+                    star = self.query_star(source_id=int(gaia_id))
+                except DataSourceNotFoundError:
+                    log.info(
+                        "gaia.resolve_by_name.dr3_miss_fallback_cone",
+                        name=name,
+                        gaia_id=gaia_id,
+                    )
+
+            if star is None and resolved.ra_deg is not None and resolved.dec_deg is not None:
+                matches = self.cone_search(
+                    ra_deg=resolved.ra_deg,
+                    dec_deg=resolved.dec_deg,
+                    radius_arcsec=cone_radius_arcsec,
+                    limit=1,
+                )
+                if matches:
+                    star = matches[0]
+
+        if star is None and simbad_unavailable:
+            # Last-ditch fallback: try matching the name directly on Gaia.
+            try:
+                star = self.query_star(name=name)
+            except DataSourceNotFoundError:
+                pass
+
+        if star is None:
+            raise DataSourceNotFoundError(
+                f"Could not resolve {name!r} via SIMBAD or Gaia"
+            )
+
+        # Re-stamp the identifier so DB lookups by planet.host_star succeed.
+        renamed = star.model_copy(update={"identifier": name})
+        log.info(
+            "gaia.resolve_by_name.done",
+            name=name,
+            gaia_source=star.identifier,
+            teff=renamed.effective_temperature_k,
+        )
+        return renamed
 
     def cone_search(
         self,
@@ -191,9 +292,10 @@ class GaiaClient(DataSourceClient):
         cols = ",".join(_COLUMNS)
         adql = (
             f"SELECT TOP {int(limit)} {cols}, "
-            f"DISTANCE(POINT('ICRS', ra, dec), POINT('ICRS', {ra_deg}, {dec_deg})) AS d "
-            f"FROM gaiadr3.gaia_source "
-            f"WHERE 1=CONTAINS(POINT('ICRS', ra, dec), "
+            f"DISTANCE(POINT('ICRS', s.ra, s.dec), "
+            f"POINT('ICRS', {ra_deg}, {dec_deg})) AS d "
+            f"FROM {_FROM_JOIN} "
+            f"WHERE 1=CONTAINS(POINT('ICRS', s.ra, s.dec), "
             f"CIRCLE('ICRS', {ra_deg}, {dec_deg}, {radius_deg})) "
             f"ORDER BY d ASC"
         )
