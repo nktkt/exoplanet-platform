@@ -29,7 +29,7 @@ from exoplanet_platform.storage.database import (
     init_db,
     reset_engine,
 )
-
+from exoplanet_platform.storage.models import Base
 
 # ---------------------------------------------------------------------------
 # Session-level setup: isolate every test run from the user's real DB.
@@ -41,12 +41,33 @@ def _test_settings() -> Iterator[None]:
     """Point every test at an in-memory SQLite DB and create its schema."""
     os.environ["EXOPLANET_STORAGE__DATABASE_URL"] = "sqlite:///:memory:"
     os.environ.setdefault("EXOPLANET_ENVIRONMENT", "test")
+    # Rich truncates cells to the detected terminal width; under pytest this
+    # defaults to ~80 cols and makes string assertions against rendered tables
+    # unreliable. Force a wide output so cells stay intact.
+    os.environ["COLUMNS"] = "200"
     reset_settings_cache()
     reset_engine()
     init_db()
     yield
     reset_engine()
     reset_settings_cache()
+
+
+# ---------------------------------------------------------------------------
+# Per-test DB cleanup. The shared in-memory SQLite uses a StaticPool with a
+# single connection so TestClient commits are visible across tests; we wipe
+# every table before each test to keep them isolated.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _clean_db() -> Iterator[None]:
+    """Delete all rows from every table before each test."""
+    engine = get_engine()
+    with engine.begin() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            conn.execute(table.delete())
+    yield
 
 
 # ---------------------------------------------------------------------------

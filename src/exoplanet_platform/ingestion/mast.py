@@ -69,7 +69,7 @@ class MASTClient(DataSourceClient):
         log.debug("mast.health_check.start")
         try:
             import lightkurve as lk  # noqa: F401 - import check is the test
-        except Exception as e:  # noqa: BLE001 - health must not raise
+        except Exception as e:
             log.warning("mast.health_check.import_failed", error=str(e))
             return False
         return True
@@ -111,7 +111,7 @@ class MASTClient(DataSourceClient):
         try:
             log.debug("mast.search.request", target=target, mission=display_mission)
             result = lk.search_lightcurve(target, mission=display_mission)
-        except Exception as e:  # noqa: BLE001 - lightkurve raises bare Exception
+        except Exception as e:
             log.warning("mast.search.failed", target=target, error=str(e))
             raise DataSourceUnavailableError(
                 f"MAST search failed for {target!r}: {e}"
@@ -202,7 +202,7 @@ class MASTClient(DataSourceClient):
         try:
             log.debug("mast.download.search", target=target, kwargs=search_kwargs)
             result = lk.search_lightcurve(target, **search_kwargs)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.warning("mast.download.search_failed", target=target, error=str(e))
             raise DataSourceUnavailableError(
                 f"MAST search failed for {target!r}: {e}"
@@ -223,7 +223,7 @@ class MASTClient(DataSourceClient):
                 log.debug("mast.download.collection", target=target, n=len(result))
                 collection = result.download_all()
                 lc = collection.stitch()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.warning("mast.download.failed", target=target, error=str(e))
             raise DataSourceUnavailableError(
                 f"Failed to download light curve for {target!r}: {e}"
@@ -267,7 +267,7 @@ def _scalar(value: Any) -> Any:
     try:
         if hasattr(value, "item"):
             return value.item()
-    except Exception:  # noqa: BLE001 - best-effort
+    except Exception:
         pass
     return value
 
@@ -297,5 +297,5 @@ def _infer_cadence_minutes(times: list[float]) -> float | None:
         if diffs.size == 0:
             return None
         return float(np.median(diffs) * 24.0 * 60.0)
-    except Exception:  # noqa: BLE001 - cadence is informational
+    except Exception:
         return None

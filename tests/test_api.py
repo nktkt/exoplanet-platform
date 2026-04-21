@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from exoplanet_platform.api.errors import register_exception_handlers
 from exoplanet_platform.api.dependencies import (
     get_nasa_client,
     get_planet_repo,
     get_star_repo,
 )
+from exoplanet_platform.api.errors import register_exception_handlers
 from exoplanet_platform.api.main import create_app
 from exoplanet_platform.domain import (
     Catalog,
@@ -64,7 +63,7 @@ def test_ingest_planet_via_mocked_client() -> None:
         semi_major_axis_au=0.03,
         radius_earth=1.1,
         catalog=Catalog.NASA_EXOPLANET_ARCHIVE,
-        last_updated=datetime.now(timezone.utc),
+        last_updated=datetime.now(UTC),
     )
 
     class _Client:

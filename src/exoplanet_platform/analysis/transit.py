@@ -12,7 +12,7 @@ from astropy import units as u
 from astropy.timeseries import BoxLeastSquares
 from scipy.ndimage import median_filter
 
-from exoplanet_platform.config import get_settings
+from exoplanet_platform.config import AnalysisSettings, get_settings
 from exoplanet_platform.domain import LightCurve, TransitSignal
 from exoplanet_platform.exceptions import InsufficientDataError
 from exoplanet_platform.logging_config import get_logger
@@ -30,8 +30,8 @@ class TransitDetector:
         the cached :func:`get_settings` value is used.
     """
 
-    def __init__(self, settings: object | None = None) -> None:
-        self._settings = settings or get_settings().analysis
+    def __init__(self, settings: AnalysisSettings | None = None) -> None:
+        self._settings: AnalysisSettings = settings or get_settings().analysis
 
     # ------------------------------------------------------------------ #
     # Detrending

@@ -54,4 +54,5 @@ def configure_logging(level: str = "INFO", json_output: bool = False) -> None:
 
 def get_logger(name: str, **initial_context: Any) -> structlog.stdlib.BoundLogger:
     """Return a bound structlog logger preseeded with module context."""
-    return structlog.get_logger(name).bind(**initial_context)
+    logger: structlog.stdlib.BoundLogger = structlog.get_logger(name).bind(**initial_context)
+    return logger

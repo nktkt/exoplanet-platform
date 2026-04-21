@@ -82,10 +82,18 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
-ignore = ["E501"]
+ignore = [
+    "E501",   # line length - handled by formatter, not worth failing CI
+    "B008",   # Depends()/Query() in FastAPI defaults is the canonical pattern
+    "SIM105", # try/except/pass is fine; contextlib.suppress is not clearly better
+    "RUF046", # int(x) where x is inferred int - harmless defensive cast
+]
 # Astronomy code uses standard physics notation (E = eccentric anomaly,
 # M = mean anomaly, R_E = Earth radius, etc.) — we intentionally do not
 # enable pep8-naming (N) rules for this codebase.
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["RUF012"]  # mutable class defaults fine in test fakes
 
 [tool.mypy]
 python_version = "3.11"
@@ -95,8 +103,25 @@ disallow_untyped_defs = true
 files = ["src"]
 
 [[tool.mypy.overrides]]
-module = ["astroquery.*", "lightkurve.*", "batman.*", "astropy.*"]
+module = [
+    "astroquery.*",
+    "lightkurve.*",
+    "batman.*",
+    "astropy.*",
+    "plotly.*",
+    "pandas.*",
+    "streamlit.*",
+    "scipy.*",
+    "structlog.*",
+]
 ignore_missing_imports = true
+
+# The dashboard and CLI mix heavy optional deps with lots of DataFrame / Plotly
+# dynamic typing; strict mypy adds noise without much value there.
+[[tool.mypy.overrides]]
+module = ["exoplanet_platform.dashboard.*", "exoplanet_platform.cli.*"]
+disallow_untyped_defs = false
+disable_error_code = ["assignment", "attr-defined", "type-arg", "arg-type", "no-untyped-def"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

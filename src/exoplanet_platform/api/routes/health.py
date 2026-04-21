@@ -32,7 +32,7 @@ def health(session: Session = Depends(get_db_session)) -> HealthResponse:
     try:
         session.execute(text("SELECT 1"))
         checks["database"] = "ok"
-    except Exception as exc:  # noqa: BLE001 - we want to surface any failure mode
+    except Exception as exc:
         logger.warning("api.health.db_check_failed", error=str(exc))
         checks["database"] = f"error: {exc.__class__.__name__}"
 

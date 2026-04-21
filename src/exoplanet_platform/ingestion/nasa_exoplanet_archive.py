@@ -6,7 +6,7 @@ composite parameters table to retrieve confirmed/candidate planet records.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -122,7 +122,7 @@ class NASAExoplanetArchiveClient(DataSourceClient):
         try:
             rows = self._run_query("SELECT TOP 1 pl_name FROM pscomppars")
             return isinstance(rows, list)
-        except Exception as e:  # noqa: BLE001 - health check must never raise
+        except Exception as e:
             log.warning("nasa_ea.health_check.failed", error=str(e))
             return False
 
@@ -259,5 +259,5 @@ class NASAExoplanetArchiveClient(DataSourceClient):
             transit_duration_hours=_to_float(row.get("pl_trandur")),
             transit_depth_ppm=trandep_ppm,
             catalog=Catalog.NASA_EXOPLANET_ARCHIVE,
-            last_updated=datetime.now(timezone.utc),
+            last_updated=datetime.now(UTC),
         )

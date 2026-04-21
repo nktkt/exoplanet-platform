@@ -16,7 +16,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from exoplanet_platform.domain import LightCurve, Planet, Star
 
 
-def planet_card(planet: "Planet") -> None:
+def planet_card(planet: Planet) -> None:
     """Render a compact :class:`streamlit.container` summarising a planet."""
     import streamlit as st
 
@@ -49,8 +49,8 @@ def planet_card(planet: "Planet") -> None:
 
 
 def hz_diagram(
-    star: "Star",
-    planets: list["Planet"],
+    star: Star,
+    planets: list[Planet],
     hz_bounds: tuple[float, float, float, float],
 ) -> go.Figure:
     """Return a top-down habitable-zone diagram.
@@ -164,7 +164,7 @@ def hz_diagram(
     return fig
 
 
-def light_curve_plot(lc: "LightCurve") -> go.Figure:
+def light_curve_plot(lc: LightCurve) -> go.Figure:
     """Return a plotly scatter of time vs flux for a :class:`LightCurve`."""
     fig = go.Figure()
     fig.add_trace(

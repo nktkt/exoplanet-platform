@@ -15,7 +15,7 @@ Pages
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -43,14 +43,14 @@ logger = get_logger(__name__)
 
 @st.cache_data(ttl=3600)
 def _load_planets(
-    host_star: Optional[str] = None,
-    catalog: Optional[str] = None,
+    host_star: str | None = None,
+    catalog: str | None = None,
     limit: int = 5000,
 ) -> list[dict[str, Any]]:
     """Load planets from the local DB as a list of plain dicts (cache-friendly)."""
     from exoplanet_platform.storage import PlanetRepository, get_session
 
-    cat_enum: Optional[Catalog] = None
+    cat_enum: Catalog | None = None
     if catalog:
         try:
             cat_enum = Catalog(catalog)
@@ -76,25 +76,25 @@ def _count_rows() -> dict[str, int]:
     with get_session() as s:
         try:
             out["planets"] = PlanetRepository(s).count()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         try:
             out["stars"] = StarRepository(s).count()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         try:
             out["light_curves"] = LightCurveRepository(s).count()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
         try:
             out["recent_planets"] = PlanetRepository(s).count_recent(days=7)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     return out
 
 
 @st.cache_data(ttl=3600)
-def _get_star(identifier: str) -> Optional[dict[str, Any]]:
+def _get_star(identifier: str) -> dict[str, Any] | None:
     """Fetch a single star dict from the DB by identifier, or None."""
     from exoplanet_platform.storage import StarRepository, get_session
 
@@ -243,7 +243,7 @@ def page_planet_browser() -> None:
                 planet_card(planet)
                 with st.expander("All fields"):
                     st.json(planet.model_dump(mode="json"))
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 st.error(f"Could not render selected planet: {e}")
 
 
@@ -401,7 +401,7 @@ def page_habitability() -> None:
     planet_dict = next(r for r in rows if r["identifier"] == chosen)
     try:
         planet = Planet(**planet_dict)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         st.error(f"Could not parse planet record: {e}")
         return
 
@@ -414,7 +414,7 @@ def page_habitability() -> None:
         return
     try:
         star = Star(**star_dict)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         st.error(f"Could not parse star record: {e}")
         return
 

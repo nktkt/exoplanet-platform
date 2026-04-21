@@ -74,10 +74,15 @@ def register_exception_handlers(app: FastAPI) -> None:
     Order matters: more specific subclasses must be registered before their
     parents so FastAPI's lookup resolves to the correct handler.
     """
-    app.add_exception_handler(DataSourceNotFoundError, _not_found_handler)
-    app.add_exception_handler(ValidationError, _validation_handler)
-    app.add_exception_handler(DataSourceQuotaError, _quota_handler)
-    app.add_exception_handler(DataSourceUnavailableError, _unavailable_handler)
-    app.add_exception_handler(InsufficientDataError, _insufficient_handler)
-    app.add_exception_handler(StorageError, _storage_handler)
-    app.add_exception_handler(ExoplanetPlatformError, _platform_handler)
+    # FastAPI's exception-handler type is Callable[[Request, Exception], ...],
+    # but Starlette dispatches the correct subclass at runtime, so narrower
+    # signatures (Callable[[Request, DataSourceNotFoundError], ...]) are fine
+    # in practice. Mypy flags this contravariance conflict; the pattern is
+    # the canonical FastAPI idiom, so we suppress it at registration.
+    app.add_exception_handler(DataSourceNotFoundError, _not_found_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(ValidationError, _validation_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(DataSourceQuotaError, _quota_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(DataSourceUnavailableError, _unavailable_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(InsufficientDataError, _insufficient_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(StorageError, _storage_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(ExoplanetPlatformError, _platform_handler)  # type: ignore[arg-type]

@@ -29,7 +29,6 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -74,7 +73,7 @@ app.add_typer(db, name="db")
 # --------------------------------------------------------------------------- #
 
 
-def _die(message: str, exc: Optional[BaseException] = None) -> None:
+def _die(message: str, exc: BaseException | None = None) -> None:
     """Print a red error message and exit with code 1.
 
     Intended for handling ``ExoplanetPlatformError`` and similar recoverable
@@ -259,10 +258,10 @@ def ingest_cmd(
 
 @app.command("list-planets")
 def list_planets_cmd(
-    host_star: Optional[str] = typer.Option(
+    host_star: str | None = typer.Option(
         None, "--host-star", help="Filter by host star identifier."
     ),
-    catalog: Optional[str] = typer.Option(
+    catalog: str | None = typer.Option(
         None, "--catalog", "-c", help="Filter by catalog (e.g. nasa_exoplanet_archive)."
     ),
     limit: int = typer.Option(100, "--limit", "-n", help="Maximum rows."),
@@ -270,7 +269,7 @@ def list_planets_cmd(
     """List planets currently stored in the local database."""
     from exoplanet_platform.storage import PlanetRepository, get_session
 
-    cat_enum: Optional[Catalog] = None
+    cat_enum: Catalog | None = None
     if catalog:
         try:
             cat_enum = Catalog(catalog)
@@ -389,7 +388,7 @@ def light_curve_download_cmd(
     mission: str = typer.Option(
         "TESS", "--mission", help="Mission: TESS, Kepler, or K2."
     ),
-    sector: Optional[int] = typer.Option(
+    sector: int | None = typer.Option(
         None, "--sector", help="Sector/quarter number (optional)."
     ),
 ) -> None:
@@ -463,7 +462,7 @@ def analyze_transit_cmd(
     mission: str = typer.Option("TESS", "--mission", help="Mission for MAST query."),
     min_period: float = typer.Option(0.5, "--min-period", help="Min period (days)."),
     max_period: float = typer.Option(50.0, "--max-period", help="Max period (days)."),
-    sector: Optional[int] = typer.Option(None, "--sector", help="Sector/quarter."),
+    sector: int | None = typer.Option(None, "--sector", help="Sector/quarter."),
 ) -> None:
     """Download a light curve, run BLS, and print the top signals as a table."""
     from exoplanet_platform.analysis.transit import TransitDetector
@@ -622,8 +621,8 @@ def db_init_cmd() -> None:
 
 @serve.command("api")
 def serve_api_cmd(
-    host: Optional[str] = typer.Option(None, "--host", help="Bind host."),
-    port: Optional[int] = typer.Option(None, "--port", help="Bind port."),
+    host: str | None = typer.Option(None, "--host", help="Bind host."),
+    port: int | None = typer.Option(None, "--port", help="Bind port."),
     reload: bool = typer.Option(False, "--reload", help="Enable uvicorn autoreload."),
 ) -> None:
     """Run the FastAPI server via uvicorn programmatically."""
@@ -642,7 +641,7 @@ def serve_api_cmd(
             port=bind_port,
             reload=reload,
         )
-    except Exception as e:  # noqa: BLE001 - surface any uvicorn-level failure
+    except Exception as e:
         _die(f"API server crashed: {e}", e)
 
 

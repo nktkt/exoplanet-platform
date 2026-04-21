@@ -24,7 +24,6 @@ from exoplanet_platform.storage.repository import (
     TransitSignalRepository,
 )
 
-
 # ---------------------------------------------------------------------------
 # PlanetRepository
 # ---------------------------------------------------------------------------

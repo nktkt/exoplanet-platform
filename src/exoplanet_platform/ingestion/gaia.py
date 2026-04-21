@@ -47,7 +47,7 @@ def _to_float(value: Any) -> float | None:
     try:
         if hasattr(value, "item"):
             value = value.item()
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
     try:
         fv = float(value)
@@ -78,7 +78,7 @@ class GaiaClient(DataSourceClient):
             job = Gaia.launch_job("SELECT TOP 1 source_id FROM gaiadr3.gaia_source")
             _ = job.get_results()
             return True
-        except Exception as e:  # noqa: BLE001 - health must not raise
+        except Exception as e:
             log.warning("gaia.health_check.failed", error=str(e))
             return False
 
@@ -226,7 +226,7 @@ class GaiaClient(DataSourceClient):
         try:
             job = Gaia.launch_job(adql)
             table = job.get_results()
-        except Exception as e:  # noqa: BLE001 - astroquery raises bare exceptions
+        except Exception as e:
             log.warning("gaia.tap.failed", error=str(e))
             raise DataSourceUnavailableError(
                 f"Gaia ADQL request failed: {e}"

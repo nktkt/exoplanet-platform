@@ -110,9 +110,16 @@ class HTTPClient:
         def _do() -> httpx.Response:
             log.debug("http.request", method=method, url=url, params=params)
             try:
-                resp = self._client.request(
-                    method, url, params=params, data=data, headers=headers
-                )
+                # httpx.Client.request `data` only accepts a Mapping, not a raw
+                # string. For a string body we fall back to `content`.
+                if isinstance(data, str):
+                    resp = self._client.request(
+                        method, url, params=params, content=data, headers=headers
+                    )
+                else:
+                    resp = self._client.request(
+                        method, url, params=params, data=data, headers=headers
+                    )
             except httpx.HTTPError as e:
                 raise DataSourceUnavailableError(f"HTTP error for {url}: {e}") from e
 

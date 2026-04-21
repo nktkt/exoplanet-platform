@@ -9,7 +9,6 @@ from exoplanet_platform.analysis.transit import TransitDetector
 from exoplanet_platform.domain import Catalog, LightCurve
 from exoplanet_platform.exceptions import InsufficientDataError
 
-
 KNOWN_PERIOD_DAYS = 3.0
 KNOWN_EPOCH_BJD = 2.0
 

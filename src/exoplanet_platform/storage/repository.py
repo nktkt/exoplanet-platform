@@ -8,7 +8,7 @@ to handle the platform's own exception hierarchy.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
@@ -250,7 +250,7 @@ class PlanetRepository:
         if days < 0:
             raise StorageError("count_recent: days must be non-negative")
         try:
-            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+            cutoff = datetime.now(UTC) - timedelta(days=days)
             stmt = select(func.count()).select_from(PlanetORM).where(
                 PlanetORM.created_at >= cutoff
             )

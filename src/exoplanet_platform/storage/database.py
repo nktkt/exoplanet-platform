@@ -8,13 +8,14 @@ commit / rollback / close bookkeeping.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from exoplanet_platform.config import get_settings
 from exoplanet_platform.exceptions import StorageError
@@ -34,7 +35,15 @@ def _build_engine() -> Engine:
 
     # SQLite in-process doesn't support pool_size / max_overflow kwargs.
     engine_kwargs: dict[str, object] = {"echo": settings.storage.echo_sql, "future": True}
-    if not db_url.startswith("sqlite"):
+    if db_url.startswith("sqlite"):
+        # SQLite connections are thread-local by default; FastAPI's TestClient
+        # and uvicorn workers each use fresh threads. StaticPool keeps one
+        # connection alive for the process, and check_same_thread=False
+        # lets it be borrowed across threads safely (we serialize via Session).
+        engine_kwargs["connect_args"] = {"check_same_thread": False}
+        if ":memory:" in db_url:
+            engine_kwargs["poolclass"] = StaticPool
+    else:
         engine_kwargs["pool_size"] = settings.storage.pool_size
         engine_kwargs["max_overflow"] = settings.storage.max_overflow
 

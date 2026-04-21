@@ -57,7 +57,7 @@ class JPLHorizonsClient(DataSourceClient):
             probe = Horizons(id="499", location="500", epochs=2451545.0)
             probe.elements()
             return True
-        except Exception as e:  # noqa: BLE001 - health must not raise
+        except Exception as e:
             log.warning("jpl.health_check.failed", error=str(e))
             return False
 
@@ -67,7 +67,7 @@ class JPLHorizonsClient(DataSourceClient):
         start: str,
         stop: str,
         step: str = "1d",
-    ) -> "pd.DataFrame":
+    ) -> pd.DataFrame:
         """Fetch an ephemeris table for a body over a date range.
 
         Args:
@@ -110,7 +110,7 @@ class JPLHorizonsClient(DataSourceClient):
                 epochs={"start": start, "stop": stop, "step": step},
             )
             table = obj.ephemerides()
-        except Exception as e:  # noqa: BLE001 - astroquery raises bare exceptions
+        except Exception as e:
             if _is_unknown_body_error(e):
                 log.warning("jpl.ephemerides.not_found", body=body, error=str(e))
                 raise DataSourceNotFoundError(
@@ -167,7 +167,7 @@ class JPLHorizonsClient(DataSourceClient):
             log.debug("jpl.elements.request", body=body, epoch=epoch_value)
             obj = Horizons(id=body, location="@sun", epochs=epoch_value)
             table = obj.elements()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             if _is_unknown_body_error(e):
                 log.warning("jpl.elements.not_found", body=body, error=str(e))
                 raise DataSourceNotFoundError(
