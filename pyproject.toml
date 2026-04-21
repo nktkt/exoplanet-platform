@@ -81,8 +81,11 @@ target-version = "py311"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF"]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 ignore = ["E501"]
+# Astronomy code uses standard physics notation (E = eccentric anomaly,
+# M = mean anomaly, R_E = Earth radius, etc.) — we intentionally do not
+# enable pep8-naming (N) rules for this codebase.
 
 [tool.mypy]
 python_version = "3.11"
