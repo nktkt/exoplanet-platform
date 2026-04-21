@@ -389,7 +389,10 @@ def light_curve_download_cmd(
         "TESS", "--mission", help="Mission: TESS, Kepler, or K2."
     ),
     sector: int | None = typer.Option(
-        None, "--sector", help="Sector/quarter number (optional)."
+        None, "--sector", help="TESS sector number (optional)."
+    ),
+    quarter: int | None = typer.Option(
+        None, "--quarter", help="Kepler quarter number (optional)."
     ),
 ) -> None:
     """Download a light curve for ``target``, store it in the DB and print a summary."""
@@ -418,7 +421,7 @@ def light_curve_download_cmd(
                 f"Downloading {mission} light curve for {target}", total=None
             )
             lc = client.download_light_curve(
-                target, mission=mission_enum, sector=sector
+                target, mission=mission_enum, sector=sector, quarter=quarter
             )
             progress.update(task_id, completed=1)
 
@@ -462,7 +465,8 @@ def analyze_transit_cmd(
     mission: str = typer.Option("TESS", "--mission", help="Mission for MAST query."),
     min_period: float = typer.Option(0.5, "--min-period", help="Min period (days)."),
     max_period: float = typer.Option(50.0, "--max-period", help="Max period (days)."),
-    sector: int | None = typer.Option(None, "--sector", help="Sector/quarter."),
+    sector: int | None = typer.Option(None, "--sector", help="TESS sector number."),
+    quarter: int | None = typer.Option(None, "--quarter", help="Kepler quarter number."),
 ) -> None:
     """Download a light curve, run BLS, and print the top signals as a table."""
     from exoplanet_platform.analysis.transit import TransitDetector
@@ -478,7 +482,7 @@ def analyze_transit_cmd(
         client = MASTClient()
         with console.status(f"[cyan]Downloading {mission} light curve for {target}..."):
             lc = client.download_light_curve(
-                target, mission=mission_enum, sector=sector
+                target, mission=mission_enum, sector=sector, quarter=quarter
             )
 
         detector = TransitDetector()
